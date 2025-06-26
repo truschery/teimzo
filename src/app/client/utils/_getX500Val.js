@@ -1,6 +1,6 @@
-import splitKeep from "./splitKeep.js";
+const splitKeep = require('./splitKeep')
 
-export default function (s, f) {
+module.exports = function (s, f) {
     String.prototype.splitKeep = splitKeep
 
     const res = s.splitKeep(/,[A-Z]+=/g, true)

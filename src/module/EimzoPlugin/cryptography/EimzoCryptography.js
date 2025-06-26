@@ -2,10 +2,6 @@ import _b64tab from "./b64tab.js";
 import cb_encode from "./cb_encode.js";
 import utob from "./utob.js";
 import btou from "./btou.js";
-
-
-
-
 export default class EimzoCryptography  {
 
     b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -84,15 +80,15 @@ export default class EimzoCryptography  {
     }
 
 
-    private localBtoa(b){
+    localBtoa(b){
         return b.replace(/[\s\S]{1,3}/g, cb_encode)
     }
 
-    private localAtob(a){
+    localAtob(a){
         return a.replace(/[\s\S]{1,4}/g, this.localDecode)
     }
 
-    private localDecode(cccc){
+    localDecode(cccc){
         const fromCharCode = String.fromCharCode
 
         const len = cccc.length,

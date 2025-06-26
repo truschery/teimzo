@@ -1,4 +1,4 @@
-export default function (splitter, ahead) {
+module.exports = function (splitter, ahead) {
     const self = this
     const result = []
     if (!splitter) {
@@ -40,7 +40,7 @@ export default function (splitter, ahead) {
         }
 
     } else {
-        result.push(self)
+        result.add(self)
     }
 
     return result

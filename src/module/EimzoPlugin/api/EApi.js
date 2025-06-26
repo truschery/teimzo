@@ -12,7 +12,7 @@ export default class EApi {
     }
 
     connect(){
-        if (!window.WebSocket) return false
+        if (!window?.WebSocket) return false
 
         this.socket = new WebSocket(this.url)
 
@@ -32,42 +32,40 @@ export default class EApi {
         // }
     }
 
-    send(data, success, fail) {
-        if (!window.WebSocket) return fail && fail()
+    send(data) {
+        return new Promise((resolve, reject) => {
+            if(!this.socket) return reject("Websocket doesn't exist")
 
-        // TODO: Need open new connection
-        if(!this.socket) return fail && fail()
+            this.socket.addEventListener('message', event => {
+                const data = JSON.parse(event.data)
 
-        this.socket.onmessage = (event) => {
-            const data = JSON.parse(event.data)
+                resolve(data)
+            })
 
-            success && success(data)
-        }
-
-        this.socket.send(JSON.stringify(data))
+            this.socket.send(JSON.stringify(data))
+        })
     }
 
 
 
 
-    api(data, success, fail){
-        this.send(data, success, fail)
+    api(data){
+        return this.send(data)
     }
 
-    version(success, fail) {
-
-        this.send({ name: 'version' }, success, fail)
+    version() {
+        return this.send({ name: 'version' })
     }
 
-    apidoc(success, fail) {
-        this.send({ name: 'apidoc' }, success, fail)
+    apidoc() {
+        return this.send({ name: 'apidoc' })
     }
 
-    apikey(domainAndKey, success, fail) {
-        this.send({ name: 'apikey', arguments: domainAndKey }, success, fail)
+    apikey(domainAndKey) {
+        return this.send({ name: 'apikey', arguments: domainAndKey })
     }
 
-    private getUrl() {
+    getUrl() {
         const protocol = window.location.protocol.toLowerCase()
         const host = protocol === "https:" ? "wss://127.0.0.1:64443" : "ws://127.0.0.1:64646"
 

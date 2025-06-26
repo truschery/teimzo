@@ -1,24 +1,28 @@
 {
-  "name": "teimzo",
+  "name": "eimzo",
   "version": "1.0.0",
   "description": "Eimzo client package",
-  "main": "index.js",
+  "main": "./dist/client.min.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup --config"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/truschery/teimzo.git"
   },
+  "files": [
+    "dist"
+  ],
   "author": "truschery",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/truschery/teimzo/issues"
   },
   "homepage": "https://github.com/truschery/teimzo#readme",
-  "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^5.1.0"
+  "devDependencies": {
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.44.1"
   }
 }

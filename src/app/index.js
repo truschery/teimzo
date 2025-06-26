@@ -1,6 +1,4 @@
-import {EClient} from "./Client"
+const client = require('./client/index')
 
 
-export {
-    EClient
-}
+module.exports = client

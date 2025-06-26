@@ -84,15 +84,15 @@ export default class EimzoCryptography  {
     }
 
 
-    private localBtoa(b){
+    localBtoa(b){
         return b.replace(/[\s\S]{1,3}/g, cb_encode)
     }
 
-    private localAtob(a){
+    localAtob(a){
         return a.replace(/[\s\S]{1,4}/g, this.localDecode)
     }
 
-    private localDecode(cccc){
+    localDecode(cccc){
         const fromCharCode = String.fromCharCode
 
         const len = cccc.length,
