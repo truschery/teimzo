@@ -1,3 +1,8 @@
-import { EClient } from './module/index.js'
+import { EClient, EService } from './module/index.js'
 
-export default EClient
+
+export {
+    EClient
+}
+
+export default EService

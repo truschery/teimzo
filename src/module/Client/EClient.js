@@ -2,6 +2,8 @@ import EApi from "../EimzoPlugin/api/EApi.js";
 import _getX500Val from "./utils/_getX500Val.js";
 import isBase64 from "./utils/isBase64.js";
 import EimzoCryptography from "../EimzoPlugin/cryptography/index.js";
+import ECertificate from "./ECertificate.js";
+import Response from "../../helpers/Response.js";
 
 
 export default class EClient extends EApi{
@@ -19,19 +21,27 @@ export default class EClient extends EApi{
     }
 
 
-    async checkVersion() {
-        try {
-            const data = await super.version()
+    checkVersion() {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const data = await super.version()
 
-            if(!data.major || !data.minor) return 'E-IMZO Version is undefined'
+                if(!data.success) return reject(data?.reason)
 
-            const installedVersion = parseInt(data.major) * 100 + parseInt(data.minor)
-            this.NEW_API = installedVersion >= 336
-            this.NEW_API2 = installedVersion >= 412
-        }catch (e){
-            return e
-        }
+                if(!data.major || !data.minor) return reject('undefined E-IMZO version')
 
+                const installedVersion = parseInt(data.major) * 100 + parseInt(data.minor)
+                this.NEW_API = installedVersion >= 336
+                this.NEW_API2 = installedVersion >= 412
+
+                return resolve({
+                    major: data.major,
+                    minor: data.minor
+                })
+            }catch (e){
+                return reject(e?.reason)
+            }
+        })
 
     }
 
@@ -39,36 +49,74 @@ export default class EClient extends EApi{
         return super.apikey(this.API_KEYS)
     }
 
-    getKeys() {
+    getPfxCertificates(){
         return new Promise(async (resolve, reject) => {
-            if(!this.NEW_API) return reject('Please install new version of E-IMZO')
+            const certificates = await this._findPfxs2()
 
-            if(this.NEW_API2){
-                const keys = await this._findPfxs2()
-
-                resolve(keys)
-            }else{
-                const pfxsData = await this._findPfxs2()
-                const tokenData = await this._findTokens2()
-                const firstKey = pfxsData.firstKey ?? tokenData.firstKey
-
-                resolve({
-                    firstKey,
-                    keys: pfxsData.keys
-                })
-            }
+            resolve(certificates)
         })
     }
 
-    createPkcs7(id, data, timestamper, isDetached){
+    getFtjcCertificates() {
+        return new Promise(async (resolve, reject) => {
+            if(!this.NEW_API) return reject('Please install new version of E-IMZO')
 
-        return new Promise((resolve, reject) => {
+            const pfxsData = await this._findPfxs2()
+            const tokenData = await this._findTokens2()
+            const firstKey = pfxsData.firstKey ?? tokenData.firstKey
+
+            resolve({
+                firstKey,
+                keys: pfxsData.keys
+            })
+        })
+    }
+
+    loadPfxKey(certificate, verifyPassword){
+        return new Promise(async (resolve ,reject) => {
+            if( !certificate
+                || !certificate.hasOwnProperty('disk')
+                || !certificate.hasOwnProperty('path')
+                || !certificate.hasOwnProperty('name')
+                || !certificate.hasOwnProperty('alias')
+            ) {
+                reject('Certificate is invalid')
+            }
+
+            try {
+                const key = await super.api({
+                    plugin: "pfx",
+                    name: "load_key",
+                    arguments: [
+                        certificate.disk,
+                        certificate.path,
+                        certificate.name,
+                        certificate.alias
+                    ],
+                })
+
+                if(!!verifyPassword){
+                    const verifyKey = await super.api({ name: "verify_password", plugin: "pfx", arguments: [key] })
+
+                    resolve(verifyKey)
+                }
+
+                resolve(key)
+            }catch (e){
+                reject(e.reason)
+            }
+        })
+
+    }
+
+    createPkcs7(id, data, timestamper, isDetached){
+        return new Promise(async (resolve, reject) => {
             let data64 = isBase64(data) ? data : this.cryptography.encode(data)
             let detached = !!isDetached ? 'yes' : 'no'
 
-            const pkcs7 = super.api({plugin: "pkcs7", name: "create_pkcs7", arguments: [data64, id, detached]}).catch(e => reject(e.reason))
+            const pkcs7 = await super.pkcs7(data64, id, detached).catch(e => reject(e))
 
-            if(!timestamper) resolve(pkcs7)
+            if(!timestamper) return resolve(pkcs7)
 
             const sn = pkcs7.signer_serial_number
             timestamper(pkcs7.signature_hex, async tst => {
@@ -83,40 +131,19 @@ export default class EClient extends EApi{
     async _findPfxs2(){
         const data = await super.api({plugin: "pfx", name: "list_all_certificates"})
 
-        let keys = []
-        let itmkey
-        for (let rec in data.certificates) {
-            const el = data.certificates[rec]
-            let x500name_ex = el.alias.toUpperCase()
-            x500name_ex = x500name_ex.replace("1.2.860.3.16.1.1=", "INN=")
-            x500name_ex = x500name_ex.replace("1.2.860.3.16.1.2=", "PINFL=")
-            const key = {
-                disk: el.disk,
-                path: el.path,
-                name: el.name,
-                alias: el.alias,
-                serialNumber: _getX500Val(x500name_ex, "SERIALNUMBER"),
-                validFrom: new Date(_getX500Val(x500name_ex, "VALIDFROM").replace(/\./g, "-").replace(" ", "T")),
-                validTo: new Date(_getX500Val(x500name_ex, "VALIDTO").replace(/\./g, "-").replace(" ", "T")),
-                CN: _getX500Val(x500name_ex, "CN"),
-                TIN: (_getX500Val(x500name_ex, "INN") ? _getX500Val(x500name_ex, "INN") : _getX500Val(x500name_ex, "UID")),
-                UID: _getX500Val(x500name_ex, "UID"),
-                PINFL: _getX500Val(x500name_ex, "PINFL"),
-                O: _getX500Val(x500name_ex, "O"),
-                T: _getX500Val(x500name_ex, "T"),
-                type: 'pfx',
-            }
+        let certificates = []
+        for (let index in data.certificates) {
+            const el = data.certificates[index]
+            const certificate = new ECertificate(el)
+            const key = certificate.getKey()
+
             if (!key.TIN && !key.PINFL)
                 continue
-            itmkey = "itm-" + key.serialNumber + "-" + rec
 
-            keys.push(key)
+            certificates.push(key)
         }
 
-        return {
-            firstKey: itmkey,
-            keys
-        }
+        return certificates
     }
 
     async _findTokens2(success, fail) {
@@ -129,6 +156,8 @@ export default class EClient extends EApi{
             let x500name_ex = el.info.toUpperCase()
             x500name_ex = x500name_ex.replace("1.2.860.3.16.1.1=", "INN=")
             x500name_ex = x500name_ex.replace("1.2.860.3.16.1.2=", "PINFL=")
+
+            // TODO: Сделать отдельный класс для этого функционала
             const key = {
                 cardUID: el.cardUID,
                 statusInfo: el.statusInfo,

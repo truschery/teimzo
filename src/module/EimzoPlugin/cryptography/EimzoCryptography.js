@@ -2,13 +2,13 @@ import _b64tab from "./b64tab.js";
 import cb_encode from "./cb_encode.js";
 import utob from "./utob.js";
 import btou from "./btou.js";
+import btoa from "./btoa.js";
 export default class EimzoCryptography  {
 
     b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
     constructor() {
         this.b64tab = _b64tab(this.b64chars)
-        this.btoa = btoa ? btoa : this.localBtoa
         this.atob = atob ? atob : this.localAtob
 
         this.Base64 = {
@@ -48,7 +48,7 @@ export default class EimzoCryptography  {
 
     encode(u, urisafe){
         const _encode = u => {
-            return this.btoa(utob(u))
+            return btoa(utob(u))
         }
 
 
@@ -77,11 +77,6 @@ export default class EimzoCryptography  {
 
     encodeURI(u){
         return this.encode(u, true)
-    }
-
-
-    localBtoa(b){
-        return b.replace(/[\s\S]{1,3}/g, cb_encode)
     }
 
     localAtob(a){

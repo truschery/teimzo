@@ -1,40 +1,34 @@
-
+import Response from "../../../helpers/Response.js";
 
 
 export default class EApi {
 
     constructor() {
-        this.url = this.getUrl()
         this.socket = null
 
-        this._handlers = new Map()
         this.connect()
     }
 
     connect(){
-        if (!window?.WebSocket) return false
+        if (!window?.WebSocket) throw new Error(`Failed to find [WebSocket] class`)
 
-        this.socket = new WebSocket(this.url)
+        try {
+            const url = this.getUrl()
 
-        this.socket.onclose = (e) => {
-            if(e.code !== 1000){
+            this.socket = new WebSocket(url)
 
-                //Todo create on Close Error
+            this.socket.onclose = e => {
+                if(e.code !== 1000){
+                    throw new Error(`Failed connect to WebSocket. Error Code: ${e.code}`)
+                }
             }
+        }catch (e){
+            throw new Error(e.reason)
         }
-
-        // this.socket.onmessage = (e) => {
-        //     const data = JSON.parse(e.data)
-        // }
-
-        // this.socket.onopen = function(){
-        //     this.socket.send(JSON.stringify(funcDef))
-        // }
     }
 
     send(data) {
         return new Promise((resolve, reject) => {
-            if(!this.socket) return reject("Websocket doesn't exist")
 
             this.socket.addEventListener('message', event => {
                 const data = JSON.parse(event.data)
@@ -42,12 +36,27 @@ export default class EApi {
                 resolve(data)
             })
 
-            this.socket.send(JSON.stringify(data))
+            if(this.socket.readyState === WebSocket.OPEN){
+                return this.socket.send(JSON.stringify(data))
+            }
+
+            this.socket.onopen = () => {
+                this.socket.send(JSON.stringify(data))
+            }
         })
     }
 
+    async pkcs7(data64, id, detached){
+        const response = await this.api({plugin: "pkcs7", name: "create_pkcs7", arguments: [data64, id, detached]})
 
+        if(response.success) return response
 
+        if(response.hasOwnProperty('reason') && response.reason.indexOf('javax.crypto.BadPaddingException') !== -1){
+            return Promise.reject(Response.ErrorCode(1001))
+        }else if(!response.success && response.reason.indexOf('Ввод пароля отменен') !== -1){
+            return Promise.reject(Response.ErrorCode(1002))
+        }
+    }
 
     api(data){
         return this.send(data)

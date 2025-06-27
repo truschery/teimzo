@@ -40,7 +40,7 @@ export default function (splitter, ahead) {
         }
 
     } else {
-        result.add(self)
+        result.push(self)
     }
 
     return result
